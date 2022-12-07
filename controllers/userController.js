@@ -79,8 +79,9 @@ exports.deleteUser = async (req, res) => {
 exports.getAllUsers = async (req, res) => {
   const query = req.query.new;
   try {
-    
-    const users = query ? await User.find({ isAdmin: false }).limit(query) : await User.find({ isAdmin: false }) ;
+    const users = query
+      ? await User.find({ isAdmin: false }).limit(query).sort({ _id: -1 })
+      : await User.find({ isAdmin: false }).sort({ _id: -1 });
     res.status(201).json({
       message: "Successful",
       users,
@@ -96,7 +97,6 @@ exports.getAllUsers = async (req, res) => {
 //controller for getting a single user details----
 // accessible by : user
 exports.getUserDetails = async (req, res) => {
-  console.log("req.user=>", req.user);
   try {
     if (req.user._id == req.params.id) {
       const user = await User.findById(req.params.id);
@@ -117,5 +117,48 @@ exports.getUserDetails = async (req, res) => {
     res.status(401).json({
       error: err.message,
     });
+  }
+};
+
+//Controller for fetching the user stats from the last year
+// accessible by : admin
+exports.fetchStatsUser = async (req, res) => {
+  const today = new Date();
+  const lastYear = today.setFullYear(today.setFullYear() - 1);
+  const monthsArr = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+  try {
+    const data = await User.aggregate([
+      {
+        $project: {
+          month: {
+            $month: "$createdAt",
+          },
+        },
+      },
+      {
+        $group: {
+          _id: "$month",
+          total: {
+            $sum: 1,
+          },
+        },
+      },
+    ]);
+    res.status(200).json(data);
+  } catch (err) {
+    res.status(500).json(err);
   }
 };
